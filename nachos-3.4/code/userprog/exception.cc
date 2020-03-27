@@ -85,6 +85,7 @@ ExceptionHandler(ExceptionType which)
     			//FIFO
     			if(RA_THIS == RA_FIFO){
     				i = machine->tlb_top;
+                    machine->tlb_top = (machine->tlb_top+1) % TLBSize;
     			}
 
     			//LRU
@@ -110,7 +111,6 @@ ExceptionHandler(ExceptionType which)
     		machine->tlb[i].readOnly = false;
     		machine->tlb[i].valid = true;
     		machine->tlb[i].counter = 0;
-    		machine->tlb_top = (machine->tlb_top+1) % TLBSize;
 
     	}
 
