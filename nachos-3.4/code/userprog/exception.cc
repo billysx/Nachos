@@ -1,4 +1,4 @@
-// exception.cc 
+// exception.cc
 //	Entry point into the Nachos kernel from user programs.
 //	There are two kinds of things that can cause control to
 //	transfer back to here from user code:
@@ -9,7 +9,7 @@
 //
 //	exceptions -- The user code does something that the CPU can't handle.
 //	For instance, accessing memory that doesn't exist, arithmetic errors,
-//	etc.  
+//	etc.
 //
 //	Interrupts (which can also cause control to transfer from user
 //	code into the Nachos kernel) are handled elsewhere.
@@ -18,7 +18,7 @@
 // Everything else core dumps.
 //
 // Copyright (c) 1992-1993 The Regents of the University of California.
-// All rights reserved.  See copyright.h for copyright notice and limitation 
+// All rights reserved.  See copyright.h for copyright notice and limitation
 // of liability and disclaimer of warranty provisions.
 
 #include "copyright.h"
@@ -26,7 +26,7 @@
 #include "syscall.h"
 
 // all the replacement algorithms
-#define RA_FIFO 0 
+#define RA_FIFO 0
 #define RA_LRU  1
 
 //  the replacement algorithm we choose
@@ -45,12 +45,12 @@
 //		arg3 -- r6
 //		arg4 -- r7
 //
-//	The result of the system call, if any, must be put back into r2. 
+//	The result of the system call, if any, must be put back into r2.
 //
 // And don't forget to increment the pc before returning. (Or else you'll
 // loop making the same system call forever!
 //
-//	"which" is the kind of exception.  The list of possible exceptions 
+//	"which" is the kind of exception.  The list of possible exceptions
 //	are in machine.h.
 //----------------------------------------------------------------------
 
@@ -64,12 +64,9 @@ ExceptionHandler(ExceptionType which)
     		float(machine->tlb_miss_time)/float(machine->tlb_hit_time));
 		DEBUG('a', "Shutdown, initiated by user program.\n");
 	   	interrupt->Halt();
-    } 
+    }
 
     else if(which == PageFaultException){
-    	// if (machine->cnttt++>100)
-    	// 	ASSERT(0);
-    	//printf("%d\n",machine->cnttt++);
     	// when tlb is used
     	if(machine->tlb!=NULL){
     		unsigned int vpn = (unsigned) machine->registers[BadVAddrReg] / PageSize;
