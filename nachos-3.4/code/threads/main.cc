@@ -111,8 +111,13 @@ main(int argc, char **argv)
 #ifdef USER_PROGRAM
         if (!strcmp(*argv, "-x")) {        	// run a user program
 	    ASSERT(argc > 1);
-            StartProcess(*(argv + 1));
-            argCount = 2;
+
+    	for(int i=1;i<argc;++i){
+    		Thread * t = new Thread("userprog"+i); 
+    		t->Fork(StartProcess,(void*)*(argv + i));
+    	}
+        argCount = argc;
+
         } else if (!strcmp(*argv, "-c")) {      // test the console
 	    if (argc == 1)
 	        ConsoleTest(NULL, NULL);

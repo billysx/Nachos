@@ -23,6 +23,7 @@
 void
 StartProcess(char *filename)
 {
+    printf("thread %d executing file %s\n",currentThread->get_threadID(),filename);
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
 
