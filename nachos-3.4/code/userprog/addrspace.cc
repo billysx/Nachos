@@ -108,33 +108,33 @@ AddrSpace::AddrSpace(OpenFile *executable)
         DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
 
-        // int inFileAddr = noffH.code.inFileAddr;
-        // int code_size  = noffH.code.size;
-        // int vpn        = noffH.code.virtualAddr / PageSize;
-        // int paddr      = pageTable[vpn].physicalPage * PageSize;
-        // while(true){
-        // 	if(code_size > PageSize){
-        // 		code_size  -= PageSize;
-        // 		paddr       = pageTable[vpn].physicalPage * PageSize;
-        // 		executable->ReadAt(&(machine->mainMemory[paddr]),PageSize,inFileAddr);
-        // 		inFileAddr += PageSize;
-        // 		vpn        += 1;
-        // 	}
-        // 	else{
-        // 		paddr       = pageTable[vpn].physicalPage * PageSize;
-        // 		executable->ReadAt(&(machine->mainMemory[paddr]),code_size,inFileAddr);
-        // 		break;
-        // 	}
-        // }
-        
         int inFileAddr = noffH.code.inFileAddr;
-        for (i=0; i< noffH.code.size; ++i){
-        	// Memory Management Module 
-        	int vpn    = (noffH.code.virtualAddr + i) / PageSize;
-        	int offset = (noffH.code.virtualAddr + i) % PageSize;
-        	int addr   = pageTable[vpn].physicalPage * PageSize + offset;
-        	executable->ReadAt(&(machine->mainMemory[addr]),1,inFileAddr++);
+        int code_size  = noffH.code.size;
+        int vpn        = noffH.code.virtualAddr / PageSize;
+        int paddr      = pageTable[vpn].physicalPage * PageSize;
+        while(true){
+        	if(code_size >= PageSize){
+        		code_size  -= PageSize;
+        		paddr       = pageTable[vpn].physicalPage * PageSize;
+        		executable->ReadAt(&(machine->mainMemory[paddr]),PageSize,inFileAddr);
+        		inFileAddr += PageSize;
+        		vpn        += 1;
+        	}
+        	else{
+        		paddr       = pageTable[vpn].physicalPage * PageSize;
+        		executable->ReadAt(&(machine->mainMemory[paddr]),code_size,inFileAddr);
+        		break;
+        	}
         }
+        
+        // int inFileAddr = noffH.code.inFileAddr;
+        // for (i=0; i< noffH.code.size; ++i){
+        // 	// Memory Management Module 
+        // 	int vpn    = (noffH.code.virtualAddr + i) / PageSize;
+        // 	int offset = (noffH.code.virtualAddr + i) % PageSize;
+        // 	int addr   = pageTable[vpn].physicalPage * PageSize + offset;
+        // 	executable->ReadAt(&(machine->mainMemory[addr]),1,inFileAddr++);
+        // }
     }
     if (noffH.initData.size > 0) {
         DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
