@@ -66,10 +66,10 @@ ExceptionHandler(ExceptionType which)
     } 
 
     if ((which == SyscallException) && (type == SC_Exit) ) {
-
-        currentThread->Yield();
         printf("miss time %d, hit time %d ,miss rate %.8f\n",machine->tlb_miss_time,machine->tlb_hit_time,
             float(machine->tlb_miss_time)/float(machine->tlb_hit_time));
+        currentThread->Yield();
+
 
         for(int i=0;i<machine->pageTableSize;++i){
             int ppn = machine->pageTable[i].physicalPage;
