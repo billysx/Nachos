@@ -218,6 +218,16 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 				virtAddr, pageTableSize);
 		    return PageFaultException;
 		}
+
+		// Aging algorithm
+		for (i = 0; i < pageTableSize; i++){
+    	    if (i == vpn) {
+				pageTable[i].counter = (pageTable[i].counter >> 1) + (1<<7);
+	    	}
+	    	else if(i != vpn){
+	    		pageTable[i].counter = (pageTable[i].counter >> 1);
+	    	}
+	    }
 		entry = &pageTable[vpn];
     }
     // tlb is available
