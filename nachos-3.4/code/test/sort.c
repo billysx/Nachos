@@ -1,4 +1,4 @@
-/* sort.c 
+/* sort.c
  *    Test program to sort a large number of integers.
  *
  *    Intention is to stress virtual memory system.
@@ -8,7 +8,7 @@
  */
 
 #include "syscall.h"
-# define A_size 16
+# define A_size 1024
 int A[A_size];	/* size of physical memory; with code, we'll run out of space!*/
 
 int
@@ -17,7 +17,7 @@ main()
     int i, j, tmp;
 
     /* first initialize the array, in reverse sorted order */
-    for (i = 0; i < A_size; i++)		
+    for (i = 0; i < A_size; i++)
         A[i] = A_size - i;
 
     /* then sort! */

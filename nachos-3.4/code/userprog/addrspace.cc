@@ -113,7 +113,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
         int vpn        = noffH.code.virtualAddr / PageSize;
         int paddr      = pageTable[vpn].physicalPage * PageSize;
         while(true){
-        	if(code_size >= PageSize){
+        	if(code_size > PageSize){
         		code_size  -= PageSize;
         		paddr       = pageTable[vpn].physicalPage * PageSize;
         		executable->ReadAt(&(machine->mainMemory[paddr]),PageSize,inFileAddr);
