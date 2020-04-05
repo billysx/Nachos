@@ -63,6 +63,11 @@ ExceptionHandler(ExceptionType which)
     if ((which == SyscallException) && (type == SC_Halt) ) {
 
 		DEBUG('a', "Shutdown, initiated by user program.\n");
+        for(int i=0;i<machine->pageTableSize;++i){
+            int ppn = machine->pageTable[i].physicalPage;
+            if (machine->pageTable[i].valid==1)
+                machine->bitmap->Clear(ppn);
+        }
 	   	interrupt->Halt();
     }
 
