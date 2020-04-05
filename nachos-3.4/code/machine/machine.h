@@ -189,6 +189,8 @@ class Machine {
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
     BitMap* bitmap;
+    // Simulate the disk
+    OpenFile *simDisk;
 
   private:
     bool singleStep;		// drop back into the debugger after each

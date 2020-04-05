@@ -73,8 +73,8 @@ ExceptionHandler(ExceptionType which)
 
         for(int i=0;i<machine->pageTableSize;++i){
             int ppn = machine->pageTable[i].physicalPage;
-
-            machine->bitmap->Clear(ppn);
+            if (machine->pageTable[i].valid==1)
+                machine->bitmap->Clear(ppn);
         }
         printf("thread %d exits\n",currentThread->get_threadID());
         currentThread->Finish();
@@ -86,9 +86,10 @@ ExceptionHandler(ExceptionType which)
     else if(which == PageFaultException){
     	// if (machine->cnttt++>100)
     	// 	ASSERT(0);
-    	//printf("%d\n",machine->cnttt++);
+    	// printf("%d\n",machine->cnttt++);
     	// when tlb is used
     	if(machine->tlb!=NULL){
+            printf("tlb fault\n");
     		unsigned int vpn = (unsigned) machine->registers[BadVAddrReg] / PageSize;
     		int i = 0;
     		bool have_empty = 0;
@@ -136,8 +137,8 @@ ExceptionHandler(ExceptionType which)
 
     	// when pageTable is used
     	else{
-    		OpenFile *openfile = fileSystem->Open("virtual_mem");
-            if (openfile == NULL) ASSERT(0);
+            printf("page fault\n");
+
             int vpn = (unsigned) machine->registers[BadVAddrReg] / PageSize;
 
             // Check if there are free physical pages
@@ -165,20 +166,20 @@ ExceptionHandler(ExceptionType which)
     			// Write Back
     			if (machine->pageTable[rep].dirty){
     				//CHECK IF THIS IS RIGHT
-            		openfile->WriteAt(&(machine->mainMemory[ppn*PageSize]),PageSize, machine->pageTable[rep].virtualPage*PageSize);
+            		machine->simDisk->WriteAt(&(machine->mainMemory[ppn*PageSize]), PageSize, machine->pageTable[rep].virtualPage*PageSize);
             	}
             	machine->pageTable[rep].valid = 0;
 
             }
+            machine->simDisk->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, vpn*PageSize);
 
-            machine->pageTable[vpn].virtualPage = vpn;
+            machine->pageTable[vpn].virtualPage  = vpn;
             machine->pageTable[vpn].physicalPage = ppn;
-            machine->tlb[vpn].dirty = false;
-            machine->tlb[vpn].use = false;
-            machine->tlb[vpn].readOnly = false;
-            machine->tlb[vpn].valid = true;
-            machine->tlb[vpn].counter = 0;
-            delete openfile;
+            machine->pageTable[vpn].dirty        = false;
+            machine->pageTable[vpn].use          = false;
+            machine->pageTable[vpn].readOnly     = false;
+            machine->pageTable[vpn].valid        = true;
+            machine->pageTable[vpn].counter      = 0;
     	}
     }
 
