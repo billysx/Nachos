@@ -88,7 +88,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
     DEBUG('a', "Initializing address space, num pages %d, size %d\n",
 					numPages, size);
 // first, set up the translation
-    pageTable = new TranslationEntry[numPages];
+   // pageTable = new TranslationEntry[numPages];
 
  //    for (i = 0; i < numPages; i++) {
 	// pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
@@ -186,11 +186,14 @@ AddrSpace::InitRegisters()
 
 void AddrSpace::SaveState()
 {
-	for (int i=0; i<TLBSize; ++i){
-		machine->tlb[i].valid = false;
-		machine->tlb[i].counter = 0;
-	}
-	machine->tlb_top = 0;
+    if(machine->tlb!=NULL){
+        for (int i=0; i<TLBSize; ++i){
+            machine->tlb[i].valid = false;
+            machine->tlb[i].counter = 0;
+        }
+        machine->tlb_top = 0;
+    }
+
 }
 
 //----------------------------------------------------------------------
@@ -203,6 +206,7 @@ void AddrSpace::SaveState()
 
 void AddrSpace::RestoreState()
 {
-    machine->pageTable = pageTable;
-    machine->pageTableSize = numPages;
+    // machine->pageTable = pageTable;
+    // machine->pageTableSize = numPages;
+    machine->virtualPageSize = numPages;
 }

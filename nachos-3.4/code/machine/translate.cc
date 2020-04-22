@@ -188,7 +188,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 {
     int i;
     unsigned int vpn, offset;
-    TranslationEntry *entry;
+    TranslationEntry *entry = NULL;
     unsigned int pageFrame;
 
     DEBUG('a', "\tTranslate 0x%x, %s: ", virtAddr, writing ? "write" : "read");
@@ -209,27 +209,48 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     offset = (unsigned) virtAddr % PageSize;
 
     if (tlb == NULL) {		// => page table => vpn is index into table
-		if (vpn >= pageTableSize) {
-		    DEBUG('a', "virtual page # %d too large for page table size %d!\n",
-				virtAddr, pageTableSize);
-		    return AddressErrorException;
-		} else if (!pageTable[vpn].valid) {
-		    DEBUG('a', "virtual page # %d too large for page table size %d!\n",
-				virtAddr, pageTableSize);
-		    return PageFaultException;
-		}
+		// if (vpn >= pageTableSize) {
+		//     DEBUG('a', "virtual page # %d too large for page table size %d!\n",
+		// 		virtAddr, pageTableSize);
+		//     return AddressErrorException;
+		// }
+		// else if (!pageTable[vpn].valid) {
+		//     DEBUG('a', "virtual page # %d too large for page table size %d!\n",
+		// 		virtAddr, pageTableSize);
+		//     return PageFaultException;
+		// }
 
 		// Aging algorithm
-		for (i = 0; i < pageTableSize; i++){
-    	    if (i == vpn) {
+		// for (i = 0; i < pageTableSize; i++){
+  //   	    if (i == vpn) {
+		// 		pageTable[i].counter = (pageTable[i].counter >> 1) + (1<<7);
+	 //    	}
+	 //    	else if(i != vpn){
+	 //    		pageTable[i].counter = (pageTable[i].counter >> 1);
+	 //    	}
+	 //    }
+		// entry = &pageTable[vpn];
+		if( vpn >= virtualPageSize){
+			return AddressErrorException;
+		}
+		for (int i=0;i<pageTableSize;++i){
+			if(pageTable[i].thread_id == currentThread->get_threadID()
+				&& pageTable[i].valid
+				&& pageTable[i].virtualPage == vpn)
+			{
+				entry = &pageTable[i];
 				pageTable[i].counter = (pageTable[i].counter >> 1) + (1<<7);
-	    	}
-	    	else if(i != vpn){
-	    		pageTable[i].counter = (pageTable[i].counter >> 1);
-	    	}
-	    }
-		entry = &pageTable[vpn];
+			}
+			else{
+				pageTable[i].counter = (pageTable[i].counter >> 1);
+			}
+		}
+		if (entry == NULL){
+			return PageFaultException;
+		}
     }
+
+
     // tlb is available
     else {
         for (entry = NULL, i = 0; i < TLBSize; i++){

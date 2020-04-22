@@ -1,4 +1,4 @@
-// main.cc 
+// main.cc
 //	Bootstrap code to initialize the operating system kernel.
 //
 //	Allows direct calls into internal operating system functions,
@@ -31,7 +31,7 @@
 //    -p prints a Nachos file to stdout
 //    -r removes a Nachos file from the file system
 //    -l lists the contents of the Nachos directory
-//    -D prints the contents of the entire file system 
+//    -D prints the contents of the entire file system
 //    -t tests the performance of the Nachos file system
 //
 //  NETWORK
@@ -43,7 +43,7 @@
 //  Some of the flags are interpreted here; some in system.cc.
 //
 // Copyright (c) 1992-1993 The Regents of the University of California.
-// All rights reserved.  See copyright.h for copyright notice and limitation 
+// All rights reserved.  See copyright.h for copyright notice and limitation
 // of liability and disclaimer of warranty provisions.
 
 #define MAIN
@@ -61,19 +61,20 @@ extern int testnum;
 
 extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
 extern void Print(char *file), PerformanceTest(void);
+extern void MakeDir(char* name);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
 
 //----------------------------------------------------------------------
 // main
-// 	Bootstrap the operating system kernel.  
-//	
+// 	Bootstrap the operating system kernel.
+//
 //	Check command line arguments
 //	Initialize data structures
 //	(optionally) Call test procedure
 //
 //	"argc" is the number of command line arguments (including the name
-//		of the command) -- ex: "nachos -d +" -> argc = 3 
+//		of the command) -- ex: "nachos -d +" -> argc = 3
 //	"argv" is an array of strings, one for each command line argument
 //		ex: "nachos -d +" -> argv = {"nachos", "-d", "+"}
 //----------------------------------------------------------------------
@@ -81,56 +82,55 @@ extern void MailTest(int networkID);
 int
 main(int argc, char **argv)
 {
-    int argCount;			// the number of arguments 
+    int argCount;			// the number of arguments
 					// for a particular command
 
     DEBUG('t', "Entering main");
     (void) Initialize(argc, argv);
-    
-#ifdef THREADS
-    for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
-      argCount = 1;
-      switch (argv[0][1]) {
-      case 'q':
-        testnum = atoi(argv[1]);
-        argCount++;
-        break;
-      default:
-        testnum = 1;
-        break;
-      }
-    }
 
-    ThreadTest();
-#endif
+// #ifdef THREADS
+//     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
+//       argCount = 1;
+//       switch (argv[0][1]) {
+//       case 'q':
+//         testnum = atoi(argv[1]);
+//         argCount++;
+//         break;
+//       default:
+//         testnum = 1;
+//         break;
+//       }
+//     }
+//     ThreadTest();
+// #endif
 
     for (argc--, argv++; argc > 0; argc -= argCount, argv += argCount) {
 	argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
-#ifdef USER_PROGRAM
-        if (!strcmp(*argv, "-x")) {        	// run a user program
-	    ASSERT(argc > 1);
+// #ifdef USER_PROGRAM
+//         if (!strcmp(*argv, "-x")) {        	// run a user program
+// 	    ASSERT(argc > 1);
 
-    	for(int i=1;i<argc;++i){
-    		Thread * t = new Thread("userprog"+i); 
-    		t->Fork(StartProcess,(void*)*(argv + i));
-    	}
-        argCount = argc;
+//     	for(int i=1;i<argc;++i){
+//     		Thread * t = new Thread("userprog"+i);
+//     		t->Fork(StartProcess,(void*)*(argv + i));
+//     	}
+//         argCount = argc;
 
-        } else if (!strcmp(*argv, "-c")) {      // test the console
-	    if (argc == 1)
-	        ConsoleTest(NULL, NULL);
-	    else {
-		ASSERT(argc > 2);
-	        ConsoleTest(*(argv + 1), *(argv + 2));
-	        argCount = 3;
-	    }
-	    interrupt->Halt();		// once we start the console, then 
-					// Nachos will loop forever waiting 
-					// for console input
-	}
-#endif // USER_PROGRAM
+//         } else if (!strcmp(*argv, "-c")) {      // test the console
+// 	    if (argc == 1)
+// 	        ConsoleTest(NULL, NULL);
+// 	    else {
+// 		ASSERT(argc > 2);
+// 	        ConsoleTest(*(argv + 1), *(argv + 2));
+// 	        argCount = 3;
+// 	    }
+// 	    interrupt->Halt();		// once we start the console, then
+// 					// Nachos will loop forever waiting
+// 					// for console input
+// 	}
+// #endif // USER_PROGRAM
 #ifdef FILESYS
 	if (!strcmp(*argv, "-cp")) { 		// copy from UNIX to Nachos
 	    ASSERT(argc > 2);
@@ -150,13 +150,15 @@ main(int argc, char **argv)
             fileSystem->Print();
 	} else if (!strcmp(*argv, "-t")) {	// performance test
             PerformanceTest();
+	} else if (!strcmp(*argv, "-mkdir")) {	// make directory
+            MakeDir(*(argv+1));
 	}
 #endif // FILESYS
 #ifdef NETWORK
         if (!strcmp(*argv, "-o")) {
 	    ASSERT(argc > 1);
             Delay(2); 				// delay for 2 seconds
-						// to give the user time to 
+						// to give the user time to
 						// start up another nachos
             MailTest(atoi(*(argv + 1)));
             argCount = 2;
@@ -164,7 +166,7 @@ main(int argc, char **argv)
 #endif // NETWORK
     }
 
-    currentThread->Finish();	// NOTE: if the procedure "main" 
+    currentThread->Finish();	// NOTE: if the procedure "main"
 				// returns, then the program "nachos"
 				// will exit (as any other normal program
 				// would).  But there may be other

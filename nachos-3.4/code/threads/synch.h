@@ -1,18 +1,18 @@
-// synch.h 
+// synch.h
 //	Data structures for synchronizing threads.
 //
 //	Three kinds of synchronization are defined here: semaphores,
 //	locks, and condition variables.  The implementation for
 //	semaphores is given; for the latter two, only the procedure
-//	interface is given -- they are to be implemented as part of 
+//	interface is given -- they are to be implemented as part of
 //	the first assignment.
 //
 //	Note that all the synchronization objects take a "name" as
 //	part of the initialization.  This is solely for debugging purposes.
 //
 // Copyright (c) 1992-1993 The Regents of the University of California.
-// All rights reserved.  See copyright.h for copyright notice and limitation 
-// synch.h -- synchronization primitives.  
+// All rights reserved.  See copyright.h for copyright notice and limitation
+// synch.h -- synchronization primitives.
 
 #ifndef SYNCH_H
 #define SYNCH_H
@@ -20,7 +20,7 @@
 #include "copyright.h"
 #include "thread.h"
 #include "list.h"
-#include "system.h"
+//#include "system.h"
 
 // The following class defines a "semaphore" whose value is a non-negative
 // integer.  The semaphore has only two operations P() and V():
@@ -28,8 +28,8 @@
 //	P() -- waits until value > 0, then decrement
 //
 //	V() -- increment, waking up a thread waiting in P() if necessary
-// 
-// Note that the interface does *not* allow a thread to read the value of 
+//
+// Note that the interface does *not* allow a thread to read the value of
 // the semaphore directly -- even if you did read the value, the
 // only thing you would know is what the value used to be.  You don't
 // know what the value is now, because by the time you get the value
@@ -42,10 +42,10 @@ class Semaphore {
     Semaphore(char* debugName, int initialValue);	// set initial value
     ~Semaphore();   					// de-allocate semaphore
     char* getName() { return name;}			// debugging assist
-    
+
     void P();	 // these are the only operations on a semaphore
     void V();	 // they are both *atomic*
-    
+
   private:
     char* name;        // useful for debugging
     int value;         // semaphore value, always >= 0
@@ -53,7 +53,7 @@ class Semaphore {
 };
 
 // The following class defines a "lock".  A lock can be BUSY or FREE.
-// There are only two operations allowed on a lock: 
+// There are only two operations allowed on a lock:
 //
 //	Acquire -- wait until the lock is FREE, then set it to BUSY
 //
@@ -62,7 +62,7 @@ class Semaphore {
 //
 // In addition, by convention, only the thread that acquired the lock
 // may release it.  As with semaphores, you can't read the lock value
-// (because the value might change immediately after you read it).  
+// (because the value might change immediately after you read it).
 
 class Lock {
   public:
@@ -73,7 +73,7 @@ class Lock {
     void Acquire(); // these are the only operations on a lock
     void Release(); // they are both *atomic*
 
-    bool isHeldByCurrentThread() { return owner == currentThread; };	// true if the current thread
+    bool isHeldByCurrentThread();	// true if the current thread
 					// holds this lock.  Useful for
 					// checking in Release, and in
 					// Condition variable ops below.
@@ -87,12 +87,12 @@ class Lock {
 
 // The following class defines a "condition variable".  A condition
 // variable does not have a value, but threads may be queued, waiting
-// on the variable.  These are only operations on a condition variable: 
+// on the variable.  These are only operations on a condition variable:
 //
-//	Wait() -- release the lock, relinquish the CPU until signaled, 
+//	Wait() -- release the lock, relinquish the CPU until signaled,
 //		then re-acquire the lock
 //
-//	Signal() -- wake up a thread, if there are any waiting on 
+//	Signal() -- wake up a thread, if there are any waiting on
 //		the condition
 //
 //	Broadcast() -- wake up all threads waiting on the condition
@@ -110,7 +110,7 @@ class Lock {
 // taken care of within Wait()).  By contrast, some define condition
 // variables according to *Hoare*-style semantics -- where the signalling
 // thread gives up control over the lock and the CPU to the woken thread,
-// which runs immediately and gives back control over the lock to the 
+// which runs immediately and gives back control over the lock to the
 // signaller when the woken thread leaves the critical section.
 //
 // The consequence of using Mesa-style semantics is that some other thread
@@ -119,17 +119,17 @@ class Lock {
 
 class Condition {
   public:
-    Condition(char* debugName);		// initialize conditionLockon to 
+    Condition(char* debugName);		// initialize conditionLockon to
 					// "no one waiting"
     ~Condition();			// deallocate the condition
     char* getName() { return (name); }
-    
-    void Wait(Lock *conditionLock); 	// these are the 3 operations on 
-					// condition variables; releasing the 
-					// lock and going to sleep are 
+
+    void Wait(Lock *conditionLock); 	// these are the 3 operations on
+					// condition variables; releasing the
+					// lock and going to sleep are
 					// *atomic* in Wait()
     void Signal(Lock *conditionLock);   // conditionLock must be held by
-    void Broadcast(Lock *conditionLock);// the currentThread for all of 
+    void Broadcast(Lock *conditionLock);// the currentThread for all of
 					// these operations
 
   private:

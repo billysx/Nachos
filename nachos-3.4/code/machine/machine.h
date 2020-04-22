@@ -187,6 +187,7 @@ class Machine {
     int cnttt;
 
     TranslationEntry *pageTable;
+    int virtualPageSize;
     unsigned int pageTableSize;
     BitMap* bitmap;
     // Simulate the disk

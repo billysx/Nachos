@@ -47,7 +47,7 @@ void
 BitMap::Mark(int which)
 {
     ASSERT(which >= 0 && which < numBits);
-    printf("allocate page %d\n",which);
+    //printf("allocate page %d\n",which);
     map[which / BitsInWord] |= 1 << (which % BitsInWord);
 }
 
@@ -62,7 +62,7 @@ void
 BitMap::Clear(int which)
 {
     ASSERT(which >= 0 && which < numBits);
-    printf("deallocate page %d\n",which);
+    //printf("deallocate page %d\n",which);
     map[which / BitsInWord] &= ~(1 << (which % BitsInWord));
 }
 
@@ -79,9 +79,9 @@ BitMap::Test(int which)
     ASSERT(which >= 0 && which < numBits);
 
     if (map[which / BitsInWord] & (1 << (which % BitsInWord)))
-	return TRUE;
+	   return TRUE;
     else
-	return FALSE;
+	   return FALSE;
 }
 
 //----------------------------------------------------------------------
@@ -116,7 +116,7 @@ BitMap::NumClear()
     int count = 0;
 
     for (int i = 0; i < numBits; i++)
-	if (!Test(i)) count++;
+	   if (!Test(i)) count++;
     return count;
 }
 
@@ -133,8 +133,8 @@ BitMap::Print()
 {
     printf("Bitmap set:\n");
     for (int i = 0; i < numBits; i++)
-	if (Test(i))
-	    printf("%d, ", i);
+	   if (Test(i))
+	       printf("%d, ", i);
     printf("\n");
 }
 

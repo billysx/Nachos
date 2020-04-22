@@ -1,15 +1,15 @@
-// fstest.cc 
-//	Simple test routines for the file system.  
+// fstest.cc
+//	Simple test routines for the file system.
 //
 //	We implement:
 //	   Copy -- copy a file from UNIX to Nachos
-//	   Print -- cat the contents of a Nachos file 
+//	   Print -- cat the contents of a Nachos file
 //	   Perftest -- a stress test for the Nachos file system
 //		read and write a really large file in tiny chunks
 //		(won't work on baseline system!)
 //
 // Copyright (c) 1992-1993 The Regents of the University of California.
-// All rights reserved.  See copyright.h for copyright notice and limitation 
+// All rights reserved.  See copyright.h for copyright notice and limitation
 // of liability and disclaimer of warranty provisions.
 
 #include "copyright.h"
@@ -20,6 +20,8 @@
 #include "thread.h"
 #include "disk.h"
 #include "stats.h"
+#include "directory.h"
+#include "openfile.h"
 
 #define TransferSize 	10 	// make it small, just to be difficult
 
@@ -37,33 +39,35 @@ Copy(char *from, char *to)
     char *buffer;
 
 // Open UNIX file
-    if ((fp = fopen(from, "r")) == NULL) {	 
+    if ((fp = fopen(from, "r")) == NULL) {
 	printf("Copy: couldn't open input file %s\n", from);
 	return;
     }
-
 // Figure out length of UNIX file
-    fseek(fp, 0, 2);		
+    fseek(fp, 0, 2);
     fileLength = ftell(fp);
     fseek(fp, 0, 0);
 
 // Create a Nachos file of the same length
-    DEBUG('f', "Copying file %s, size %d, to file %s\n", from, fileLength, to);
+
+    DEBUG('f', "Creating nachos file %s, size %d, to file %s\n", from, fileLength, to);
     if (!fileSystem->Create(to, fileLength)) {	 // Create Nachos file
 	printf("Copy: couldn't create output file %s\n", to);
 	fclose(fp);
 	return;
     }
-    
+    printf("-- Opening nachos file %s \n",to);
+
     openFile = fileSystem->Open(to);
     ASSERT(openFile != NULL);
-    
+    printf("Copying file %s, size %d, to file %s at %d\n", from, fileLength, to,openFile->GetHdrPos());
 // Copy the data in TransferSize chunks
+    DEBUG('f', "Copying file %s, size %d, to file %s\n", from, fileLength, to);
     buffer = new char[TransferSize];
-    while ((amountRead = fread(buffer, sizeof(char), TransferSize, fp)) > 0)
-	openFile->Write(buffer, amountRead);	
+    while ((amountRead = fread(buffer, sizeof(char), TransferSize, fp)) > 0){
+        openFile->Write(buffer, amountRead);
+    }
     delete [] buffer;
-
 // Close the UNIX and the Nachos files
     delete openFile;
     fclose(fp);
@@ -77,23 +81,26 @@ Copy(char *from, char *to)
 void
 Print(char *name)
 {
-    OpenFile *openFile;    
+    OpenFile *openFile;
     int i, amountRead;
     char *buffer;
-
     if ((openFile = fileSystem->Open(name)) == NULL) {
 	printf("Print: unable to open file %s\n", name);
 	return;
     }
-    
     buffer = new char[TransferSize];
     while ((amountRead = openFile->Read(buffer, TransferSize)) > 0)
 	for (i = 0; i < amountRead; i++)
 	    printf("%c", buffer[i]);
+    printf("\n");
     delete [] buffer;
-
+    // fileSystem->Print();
     delete openFile;		// close the Nachos file
     return;
+}
+
+void MakeDir(char*name){
+    fileSystem->Create(name,-1);
 }
 
 //----------------------------------------------------------------------
@@ -113,13 +120,13 @@ Print(char *name)
 #define ContentSize 	strlen(Contents)
 #define FileSize 	((int)(ContentSize * 5000))
 
-static void 
+static void
 FileWrite()
 {
-    OpenFile *openFile;    
+    OpenFile *openFile;
     int i, numBytes;
 
-    printf("Sequential write of %d byte file, in %d byte chunks\n", 
+    printf("Sequential write of %d byte file, in %d byte chunks\n",
 	FileSize, ContentSize);
     if (!fileSystem->Create(FileName, 0)) {
       printf("Perf test: can't create %s\n", FileName);
@@ -141,14 +148,14 @@ FileWrite()
     delete openFile;	// close file
 }
 
-static void 
+static void
 FileRead()
 {
-    OpenFile *openFile;    
+    OpenFile *openFile;
     char *buffer = new char[ContentSize];
     int i, numBytes;
 
-    printf("Sequential read of %d byte file, in %d byte chunks\n", 
+    printf("Sequential read of %d byte file, in %d byte chunks\n",
 	FileSize, ContentSize);
 
     if ((openFile = fileSystem->Open(FileName)) == NULL) {

@@ -44,7 +44,7 @@
 // of liability and disclaimer of warranty provisions.
 
 #include "copyright.h"
-
+#include "time.h"
 #include "disk.h"
 #include "bitmap.h"
 #include "directory.h"
@@ -56,12 +56,14 @@
 // sectors, so that they can be located on boot-up.
 #define FreeMapSector       0
 #define DirectorySector     1
+#define FilenameSector      2
 
 // Initial file sizes for the bitmap and directory; until the file system
 // supports extensible files, the directory size sets the maximum number
 // of files that can be loaded onto the disk.
 #define FreeMapFileSize     (NumSectors / BitsInByte)
 #define NumDirEntries       10
+#define FilenameFileSize    40
 #define DirectoryFileSize   (sizeof(DirectoryEntry) * NumDirEntries)
 
 //----------------------------------------------------------------------
@@ -81,11 +83,11 @@ FileSystem::FileSystem(bool format)
 {
     DEBUG('f', "Initializing the file system.\n");
     if (format) {
-
-        BitMap *freeMap = new BitMap(NumSectors);
+        BitMap *freeMap      = new BitMap(NumSectors);
         Directory *directory = new Directory(NumDirEntries);
-        FileHeader *mapHdr = new FileHeader;
-        FileHeader *dirHdr = new FileHeader;
+        FileHeader *mapHdr   = new FileHeader;
+        FileHeader *dirHdr   = new FileHeader;
+        FileHeader *nameHdr  = new FileHeader;
 
         DEBUG('f', "Formatting the file system.\n");
 
@@ -93,19 +95,24 @@ FileSystem::FileSystem(bool format)
         // (make sure no one else grabs these!)
         freeMap->Mark(FreeMapSector);
         freeMap->Mark(DirectorySector);
+        freeMap->Mark(FilenameSector);
 
         // Second, allocate space for the data blocks containing the contents
         // of the directory and bitmap files.  There better be enough space!
+
         ASSERT(mapHdr->Allocate(freeMap, FreeMapFileSize));
         ASSERT(dirHdr->Allocate(freeMap, DirectoryFileSize));
+        ASSERT(nameHdr->Allocate(freeMap, FilenameFileSize));
 
         // Flush the bitmap and directory FileHeaders back to disk
         // We need to do this before we can "Open" the file, since open
         // reads the file header off of disk (and currently the disk has garbage
         // on it!).
+
         DEBUG('f', "Writing headers back to disk.\n");
         mapHdr->WriteBack(FreeMapSector);
         dirHdr->WriteBack(DirectorySector);
+        nameHdr->WriteBack(FilenameSector);
 
         // OK to open the bitmap and directory files now
         // The file system operations assume these two files are left open
@@ -113,6 +120,7 @@ FileSystem::FileSystem(bool format)
 
         freeMapFile   = new OpenFile(FreeMapSector);
         directoryFile = new OpenFile(DirectorySector);
+        filenameFile  = new OpenFile(FilenameSector);
 
         // Once we have the files "open", we can write the initial version
         // of each file back to disk.  The directory at this point is completely
@@ -127,7 +135,6 @@ FileSystem::FileSystem(bool format)
         if (DebugIsEnabled('f')) {
             freeMap->Print();
             directory->Print();
-
             delete freeMap;
             delete directory;
             delete mapHdr;
@@ -139,6 +146,7 @@ FileSystem::FileSystem(bool format)
     // the bitmap and directory; these are left open while Nachos is running
         freeMapFile = new OpenFile(FreeMapSector);
         directoryFile = new OpenFile(DirectorySector);
+        filenameFile  = new OpenFile(FilenameSector);
     }
 }
 
@@ -182,34 +190,92 @@ FileSystem::Create(char *name, int initialSize)
 
     DEBUG('f', "Creating file %s, size %d\n", name, initialSize);
 
-    directory = new Directory(NumDirEntries);
-    directory->FetchFrom(directoryFile);
+    // Find the parent directory of the target file
+    int parent_dir_sector = FindDir(name);
+    DEBUG("f","%s 's parent_dir_sector %d\n",name,parent_dir_sector);
 
-    if (directory->Find(name) != -1)
-      success = FALSE;          // file is already in directory
-    else {
+    OpenFile* parent_dir = new OpenFile(parent_dir_sector);
+
+    directory = new Directory(NumDirEntries);
+    directory->FetchFrom(parent_dir);
+
+    int isdir = 0;
+    if (initialSize==-1){
+        isdir = 1;
+        initialSize = DirectoryFileSize;
+    }
+    if (directory->Find(name) != -1){
+        return FALSE;          // file is already in directory
+    }
+    else{
         freeMap = new BitMap(NumSectors);
         freeMap->FetchFrom(freeMapFile);
         sector = freeMap->Find();   // find a sector to hold the file header
+
+        // printf("%s is allocated with sector %d\n",name,sector);
         if (sector == -1)
             success = FALSE;        // no free block for file header
-        else if (!directory->Add(name, sector))
-            success = FALSE;    // no space in directory
-    else {
+        else if (!directory->Add(name, sector, isdir)){
+                success =  FALSE;    // no space in directory
+            }
+        else{
             hdr = new FileHeader;
-        if (!hdr->Allocate(freeMap, initialSize))
-                success = FALSE;    // no space on disk for data
-        else {
-            success = TRUE;
-        // everthing worked, flush all changes back to disk
+            if (!hdr->Allocate(freeMap, initialSize))
+                    success = FALSE;    // no space on disk for data
+            else {
+
+                success = TRUE;
+                // Add file type
+                int i,j = 0;
+                for (i=0;i<strlen(name);++i)
+                    if(name[i]==".")
+                        break;
+                for(i = i+1;i<strlen(name);++i,++j){
+                    hdr->type[j] = name[i];
+                }
+                hdr->type[j] = 0;
+
+                // Add file createTime
+                time_t c_time;
+                time(&c_time);
+                strncpy(hdr->CreateTime, asctime(gmtime(&c_time)), 25);
+                hdr->CreateTime[24] = 0;
+                if(isdir) printf("Directory ");
+                else printf("File ");
+                printf("%s is created at %s\n",name,hdr->CreateTime);
+
+                hdr->SectorPos = sector;
+                hdr->SetLastVisit();
+                hdr->SetLastEdit();
+
+                // everthing worked, flush all changes back to disk
                 hdr->WriteBack(sector);
-                directory->WriteBack(directoryFile);
+                // printf("flush back\n");
+                directory->WriteBack(parent_dir);
+                // directory->Print();
                 freeMap->WriteBack(freeMapFile);
-        }
+                // if(!isdir){
+                //     Directory* test_dir = new Directory(NumDirEntries);
+                //     OpenFile* test_file = new OpenFile(parent_dir_sector);
+
+                //     test_dir->FetchFrom(test_file);
+                //     test_dir->Find(name);
+                // }
+
+                if(isdir){
+                    Directory* dir = new Directory(NumDirEntries);
+                    OpenFile* dir_file = new OpenFile(sector);
+                    dir->WriteBack(dir_file);
+                    delete dir;
+                    delete dir_file;
+                }
+
+            }
             delete hdr;
-    }
+        }
         delete freeMap;
     }
+
     delete directory;
     return success;
 }
@@ -231,11 +297,21 @@ FileSystem::Open(char *name)
     OpenFile *openFile = NULL;
     int sector;
 
-    DEBUG('f', "Opening file %s\n", name);
-    directory->FetchFrom(directoryFile);
+    int parent_dir_sector = FindDir(name);
+
+    printf("Opening file %s under directory at sector %d\n", name,parent_dir_sector);
+    // Open father directory
+    if(parent_dir_sector >= 0){
+        openFile = new OpenFile(parent_dir_sector);
+    }
+    directory->FetchFrom(openFile);
+
+    // Find your file under father directory
     sector = directory->Find(name);
-    if (sector >= 0)
-    openFile = new OpenFile(sector);    // name was found in directory
+    if (sector >= 0){
+        printf("%s is at %d\n",name,sector );
+        openFile = new OpenFile(sector);    // name was found in directory
+    }
     delete directory;
     return openFile;                // return NULL if not found
 }
@@ -260,15 +336,34 @@ FileSystem::Remove(char *name)
     Directory *directory;
     BitMap *freeMap;
     FileHeader *fileHdr;
+    OpenFile* openFile = NULL;
+
     int sector;
+    int dir_sector = FindDir(name);
+    if(dir_sector>=0)
+        openFile = new OpenFile(dir_sector);
 
     directory = new Directory(NumDirEntries);
-    directory->FetchFrom(directoryFile);
+    directory->FetchFrom(openFile);
     sector = directory->Find(name);
     if (sector == -1) {
        delete directory;
        return FALSE;             // file not found
     }
+
+    if(directory->IsDir(name)==1){
+        Directory*tmp_dir  = new Directory(NumDirEntries);
+        OpenFile *tmp_file = new OpenFile(sector);
+        tmp_dir->FetchFrom(tmp_file);
+        if(!tmp_dir->IsEmpty()){
+            printf("omited file that is not empty.\n");
+            return FALSE;
+        }
+        delete tmp_dir;
+        delete tmp_file;
+    }
+
+
     fileHdr = new FileHeader;
     fileHdr->FetchFrom(sector);
 
@@ -320,16 +415,16 @@ FileSystem::Print()
     BitMap *freeMap = new BitMap(NumSectors);
     Directory *directory = new Directory(NumDirEntries);
 
-    printf("Bit map file header:\n");
-    bitHdr->FetchFrom(FreeMapSector);
-    bitHdr->Print();
+    // printf("Bit map file header:\n");
+    // bitHdr->FetchFrom(FreeMapSector);
+    // bitHdr->Print();
 
-    printf("Directory file header:\n");
-    dirHdr->FetchFrom(DirectorySector);
-    dirHdr->Print();
+    // printf("Directory file header:\n");
+    // dirHdr->FetchFrom(DirectorySector);
+    // dirHdr->Print();
 
-    freeMap->FetchFrom(freeMapFile);
-    freeMap->Print();
+    // freeMap->FetchFrom(freeMapFile);
+    // freeMap->Print();
 
     directory->FetchFrom(directoryFile);
     directory->Print();
@@ -339,3 +434,46 @@ FileSystem::Print()
     delete freeMap;
     delete directory;
 }
+
+
+//----------------------------------------------------------------------
+// FileSystem::FindDir
+//  Find directory position according to "/" in file name
+//----------------------------------------------------------------------
+
+int
+FileSystem::FindDir(char*name){
+    // Starting from root directory
+    int sector = DirectorySector;
+    OpenFile * parent_file = new OpenFile(sector);
+    Directory* parent_dir  = new Directory(NumDirEntries);
+    parent_dir->FetchFrom(parent_file);
+
+
+    int dir_pos = 0;
+    int subdir_pos = 0;
+    char subdir[20];
+    int nameLength = strlen(name);
+    // printf("Finding parent directory for %s\n",name);
+    while(dir_pos < nameLength){
+        subdir[subdir_pos++] = name[dir_pos++];
+        // printf("%c\n",name[dir_pos]);
+        if(name[dir_pos] == '/'){
+            subdir[subdir_pos] = 0;
+            sector = parent_dir->Find(subdir);
+            // printf("** sub dir is in %d\n",sector);
+            parent_file = new OpenFile(sector);
+            parent_dir  = new Directory(NumDirEntries);
+            parent_dir->FetchFrom(parent_file);
+            dir_pos++;
+            subdir_pos = 0;
+        }
+    }
+    return sector;
+
+}
+
+
+
+
+

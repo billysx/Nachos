@@ -54,6 +54,54 @@
 //	"which" is the kind of exception.  The list of possible exceptions
 //	are in machine.h.
 //----------------------------------------------------------------------
+void InvertPageTable(){
+    int vpn = (unsigned) machine->registers[BadVAddrReg] / PageSize;
+
+    // Check if there are free physical pages
+    int ppn = machine->bitmap->Find();
+
+    // If there isn't any free physical pages
+    // Replace one of the PTE in pageTable
+    if (ppn == -1){
+        int rep = 0;
+        if(RA_PT == RA_NFU){
+            unsigned char latest_time = 255;
+
+            for (int j=0;j<machine->pageTableSize;++j){
+                if(machine->pageTable[j].valid == 1
+                    && machine->pageTable[j].counter < latest_time
+                    && machine->pageTable[j].thread_id == currentThread->get_threadID()){
+                    latest_time = machine->pageTable[j].counter;
+                    rep = j;
+                }
+            }
+        }
+
+        // printf("rep, %d\n",rep);
+        // Exit(0);
+        // Found the virtual page rep
+        // extract its ppn
+        ppn = machine->pageTable[rep].physicalPage;
+        // Write Back
+        if (machine->pageTable[rep].dirty){
+            //CHECK IF THIS IS RIGHT
+            machine->simDisk->WriteAt(&(machine->mainMemory[ppn*PageSize]), PageSize, machine->pageTable[rep].virtualPage*PageSize);
+        }
+        machine->pageTable[rep].valid = 0;
+
+    }
+    machine->simDisk->ReadAt(&(machine->mainMemory[ppn*PageSize]), PageSize, vpn*PageSize);
+
+    machine->pageTable[ppn].virtualPage  = vpn;
+    machine->pageTable[ppn].physicalPage = ppn;
+    machine->pageTable[ppn].dirty        = false;
+    machine->pageTable[ppn].use          = false;
+    machine->pageTable[ppn].readOnly     = false;
+    machine->pageTable[ppn].valid        = true;
+    machine->pageTable[ppn].counter      = 0;
+    machine->pageTable[ppn].thread_id    = currentThread->get_threadID();
+}
+
 
 void
 ExceptionHandler(ExceptionType which)
@@ -61,11 +109,10 @@ ExceptionHandler(ExceptionType which)
     int type = machine->ReadRegister(2);
 
     if ((which == SyscallException) && (type == SC_Halt) ) {
-
 		DEBUG('a', "Shutdown, initiated by user program.\n");
         for(int i=0;i<machine->pageTableSize;++i){
             int ppn = machine->pageTable[i].physicalPage;
-            if (machine->pageTable[i].valid==1)
+            if (machine->pageTable[i].valid==1 && machine->pageTable[i].thread_id == currentThread->get_threadID())
                 machine->bitmap->Clear(ppn);
         }
 	   	interrupt->Halt();
@@ -78,7 +125,7 @@ ExceptionHandler(ExceptionType which)
 
         for(int i=0;i<machine->pageTableSize;++i){
             int ppn = machine->pageTable[i].physicalPage;
-            if (machine->pageTable[i].valid==1)
+            if (machine->pageTable[i].valid==1 && machine->pageTable[i].thread_id == currentThread->get_threadID())
                 machine->bitmap->Clear(ppn);
         }
         printf("thread %d exits\n",currentThread->get_threadID());
@@ -143,7 +190,8 @@ ExceptionHandler(ExceptionType which)
     	// when pageTable is used
     	else{
             printf("page fault\n");
-
+            InvertPageTable();
+            return;
             int vpn = (unsigned) machine->registers[BadVAddrReg] / PageSize;
 
             // Check if there are free physical pages

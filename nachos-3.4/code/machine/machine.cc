@@ -63,6 +63,19 @@ Machine::Machine(bool debug)
     mainMemory = new char[MemorySize];
     for (i = 0; i < MemorySize; i++)
       	mainMemory[i] = 0;
+
+    pageTable = new TranslationEntry[NumPhysPages];
+    for (int i=0;i<NumPhysPages;++i){
+        pageTable[i].valid        = 0;
+        pageTable[i].dirty        = 0;
+        pageTable[i].use          = 0;
+        pageTable[i].readOnly     = 0;
+        pageTable[i].physicalPage = i;
+        pageTable[i].virtualPage  = 0;
+        pageTable[i].thread_id    = -1;
+        pageTable[i].counter      = 0;
+    }
+    pageTableSize = NumPhysPages;
 #ifdef USE_TLB
     // tlb = new TranslationEntry[TLBSize];
     // for (i = 0; i < TLBSize; i++){
@@ -76,7 +89,7 @@ Machine::Machine(bool debug)
     // tlb_hit_time  = 0;
 // #else	// use linear page table
     tlb = NULL;
-    pageTable = NULL;
+    // pageTable = NULL;
 #endif
 
     singleStep = debug;
