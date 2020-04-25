@@ -92,11 +92,11 @@ FileHeader::Deallocate(BitMap *freeMap)
         synchDisk->ReadSector(dataSectors[NumDirect-1], secondary_index);
         // numSectors - (NumDirect-1) = numSectors-8
         for (int i=0; i < numSectors - (NumDirect-1); ++i) {
-            ASSERT(freeMap->Test((int) secondary_index[i*sizeof(int)]));  // ought to be marked!
+            // ASSERT(freeMap->Test((int) secondary_index[i*sizeof(int)]));  // ought to be marked!
             freeMap->Clear((int) secondary_index[i*sizeof(int)]);
         }
         for(int i=0; i < NumDirect; ++i){
-            ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
+            // ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
             freeMap->Clear((int) dataSectors[i]);
         }
         delete []secondary_index;
@@ -147,12 +147,30 @@ FileHeader::ByteToSector(int offset)
     if(offset < (NumDirect-1)*SectorSize ){
         return(dataSectors[offset / SectorSize]);
     }
-    else{
+    else if(offset < ((NumDirect-1) + (Sector2Int-1))* SectorSize ){
         offset -= (NumDirect-1)*SectorSize;
         char*secondary_index = new char[SectorSize];
         synchDisk->ReadSector(dataSectors[NumDirect-1], secondary_index);
         int res = secondary_index[(offset / SectorSize)*sizeof(int)];
         delete []secondary_index;
+        // printf("1 logical sector is %d, physical sector is %d\n",offset/SectorSize,res);
+        return res;
+    }
+    else{
+        int* secondary_index;
+        int tmp_pos = offset/SectorSize - (NumDirect-1);
+        char* tmp = new char[SectorSize];
+        synchDisk->ReadSector(dataSectors[NumDirect-1], tmp);
+        secondary_index = (int*)tmp;
+
+        while( tmp_pos >= Sector2Int-1 ){
+            // printf("%d read2 %d\n",tmp_pos,secondary_index[Sector2Int-1]);
+            tmp_pos -= (Sector2Int-1);
+            synchDisk->ReadSector(secondary_index[Sector2Int-1], tmp);
+            secondary_index = (int*)tmp;
+        }
+        int res = secondary_index[tmp_pos];
+        // printf("2 logical sector is %d, physical sector is %d\n",tmp_pos,res);
         return res;
 
     }
@@ -237,6 +255,10 @@ FileHeader::Print()
     delete [] data;
 }
 
+//----------------------------------------------------------------------
+// FileHeader::SetLastVisit and SetLastEdit
+//  When editing or reading happens, update its LastVisit and LastEdit variable
+//----------------------------------------------------------------------
 
 void
 FileHeader::SetLastVisit(){
@@ -255,3 +277,103 @@ FileHeader::SetLastEdit(){
     LastEdit[24] = 0;
     //printf("File is edited at %s\n", LastEdit);
 }
+
+
+
+//----------------------------------------------------------------------
+// FileHeader::Enlarge
+//  Enlarge the
+//----------------------------------------------------------------------
+bool
+FileHeader::Enlarge(BitMap* freeMap, int size){
+    numBytes = numBytes + size;
+    int oldNumSectors = numSectors;
+    numSectors = divRoundUp(numBytes, SectorSize);
+    int EnlargeSectors = numSectors - oldNumSectors;
+    if(EnlargeSectors == 0)
+        return true;
+    else{
+        int FreeSectors = freeMap->NumClear();
+        // printf("numclear is %d\n",FreeSectors);
+        if(FreeSectors < EnlargeSectors)
+            return false;
+    }
+    printf("The file is increased for %d bytes, enlarging disk sectors from %d to %d\n",size,oldNumSectors,numSectors);
+    if(numSectors <= NumDirect-1){
+        for (int i = oldNumSectors; i < numSectors ; i++) {
+            // printf("* %d\n",i);
+            dataSectors[i] =  freeMap->Find();
+        }
+    }
+    else if(numSectors <= (NumDirect-1) + (Sector2Int-1) ){ // if indirect index is needed
+        int*secondary_index = new int[Sector2Int];
+        int start_pos;       // where the secondary index starts
+        if(oldNumSectors < NumDirect){
+            printf("** started to using secondary_index **\n");
+            // If it doesn't need to have secondary index before
+            for (int i = oldNumSectors; i < NumDirect; i++) {
+                dataSectors[i] = freeMap->Find();
+            }
+            start_pos = 0;
+        }
+        else{
+            // If secondary index is acquired in the first place.
+            char*tmp = new char[SectorSize];
+            synchDisk->ReadSector(dataSectors[NumDirect-1], tmp);
+            secondary_index = (int*)tmp;
+            start_pos = oldNumSectors - (NumDirect-1);
+        }
+        for (int i=start_pos;i<numSectors - (NumDirect-1);++i){
+            secondary_index[i] = freeMap->Find();
+        }
+        synchDisk->WriteSector(dataSectors[NumDirect-1], (char*)secondary_index);
+        delete []secondary_index;
+    }
+    else{
+        int* secondary_index;
+        int* last_secondary_index;
+        int last_secondary_index_addr;
+        int tmp_pos = numSectors - (NumDirect-1);
+        int start_pos = oldNumSectors - (NumDirect-1);
+        char* tmp = new char[SectorSize];
+        synchDisk->ReadSector(dataSectors[NumDirect-1], tmp);
+        secondary_index = (int*)tmp;
+        last_secondary_index_addr = dataSectors[NumDirect-1];
+
+        while( tmp_pos > Sector2Int-1 ){
+            // printf("start_pos %d tmp_pos %d\n",start_pos,tmp_pos);
+            tmp_pos -= (Sector2Int-1);
+            start_pos -= (Sector2Int-1);
+
+
+            if( start_pos == 0 ){
+                secondary_index[Sector2Int-1] = freeMap->Find();
+                synchDisk->WriteSector(last_secondary_index_addr, (char*)secondary_index);
+                last_secondary_index_addr = secondary_index[Sector2Int-1];
+                // printf("---new allocation %d---\n",last_secondary_index_addr);
+                secondary_index = new int [Sector2Int];
+                break;
+            }
+            last_secondary_index_addr = secondary_index[Sector2Int-1];
+            synchDisk->ReadSector(secondary_index[Sector2Int-1], tmp);
+
+
+            secondary_index = (int*)tmp;
+            // printf("last_secondary_index %d\n",last_secondary_index_addr);
+        }
+
+        //printf("writing into %d\n",last_secondary_index_addr);
+        for (int i=start_pos;i<tmp_pos;++i){
+            secondary_index[i] = freeMap->Find();
+        }
+
+        synchDisk->WriteSector(last_secondary_index_addr, (char*)secondary_index);
+        delete []secondary_index;
+
+    }
+    return true;
+
+}
+
+
+

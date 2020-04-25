@@ -119,6 +119,7 @@ void MakeDir(char*name){
 #define Contents 	"1234567890"
 #define ContentSize 	strlen(Contents)
 #define FileSize 	((int)(ContentSize * 5000))
+#define MiniFileSize 1300
 
 static void
 FileWrite()
@@ -139,11 +140,12 @@ FileWrite()
     }
     for (i = 0; i < FileSize; i += ContentSize) {
         numBytes = openFile->Write(Contents, ContentSize);
-	if (numBytes < 10) {
-	    printf("Perf test: unable to write %s\n", FileName);
-	    delete openFile;
-	    return;
-	}
+        // printf("writing %d\n",numBytes);
+    	if (numBytes < 10) {
+    	    printf("Perf test: unable to write %s\n", FileName);
+    	    delete openFile;
+    	    return;
+    	}
     }
     delete openFile;	// close file
 }
@@ -165,6 +167,9 @@ FileRead()
     }
     for (i = 0; i < FileSize; i += ContentSize) {
         numBytes = openFile->Read(buffer, ContentSize);
+        buffer[ContentSize] = 0;
+        // printf("%d reading %d %s\n",i,numBytes,buffer);
+
 	if ((numBytes < 10) || strncmp(buffer, Contents, ContentSize)) {
 	    printf("Perf test: unable to read %s\n", FileName);
 	    delete openFile;

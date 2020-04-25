@@ -17,7 +17,7 @@
 #include "disk.h"
 #include "bitmap.h"
 
-#define NumDirect 	((SectorSize - 4 * sizeof(int) - 79 ) / sizeof(int)) // 37 / 4 = 9
+#define NumDirect 	((SectorSize - 4 * sizeof(int) - 79 ) / sizeof(int)) // 33 / 4 = 8
 #define Sector2Int  (SectorSize / sizeof(int))        // 128 / 4 = 32
 #define MaxFileSize ((NumDirect + (Sector2Int-1)) * SectorSize)  // 40*128 = 5120
 
@@ -58,6 +58,7 @@ class FileHeader {
     void Print();			// Print the contents of the file.
     void SetLastVisit();
     void SetLastEdit();
+    bool Enlarge(BitMap*freeMap, int size);
 
     int SectorPos;
     int size;
