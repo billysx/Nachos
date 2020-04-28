@@ -118,7 +118,7 @@ void MakeDir(char*name){
 #define FileName 	"TestFile"
 #define Contents 	"1234567890"
 #define ContentSize 	strlen(Contents)
-#define FileSize 	((int)(ContentSize * 5000))
+#define FileSize 	20 //((int)(ContentSize * 5000))
 #define MiniFileSize 1300
 
 static void
@@ -133,14 +133,15 @@ FileWrite()
       printf("Perf test: can't create %s\n", FileName);
       return;
     }
+    // printf("before writing\n");
     openFile = fileSystem->Open(FileName);
     if (openFile == NULL) {
 	printf("Perf test: unable to open %s\n", FileName);
 	return;
     }
+
     for (i = 0; i < FileSize; i += ContentSize) {
         numBytes = openFile->Write(Contents, ContentSize);
-        // printf("writing %d\n",numBytes);
     	if (numBytes < 10) {
     	    printf("Perf test: unable to write %s\n", FileName);
     	    delete openFile;
@@ -159,10 +160,8 @@ FileRead()
 
     printf("Sequential read of %d byte file, in %d byte chunks\n",
 	FileSize, ContentSize);
-
     if ((openFile = fileSystem->Open(FileName)) == NULL) {
 	printf("Perf test: unable to open file %s\n", FileName);
-	delete [] buffer;
 	return;
     }
     for (i = 0; i < FileSize; i += ContentSize) {
@@ -170,28 +169,62 @@ FileRead()
         buffer[ContentSize] = 0;
         // printf("%d reading %d %s\n",i,numBytes,buffer);
 
-	if ((numBytes < 10) || strncmp(buffer, Contents, ContentSize)) {
-	    printf("Perf test: unable to read %s\n", FileName);
-	    delete openFile;
-	    delete [] buffer;
-	    return;
-	}
+    	if ((numBytes < 10) || strncmp(buffer, Contents, ContentSize)) {
+    	    printf("Perf test: unable to read %s\n", FileName);
+    	    delete openFile;
+    	    delete [] buffer;
+    	    return;
+    	}
     }
     delete [] buffer;
     delete openFile;	// close file
-}
 
+}
+void RemoveTest(){
+    if (fileSystem->Remove(FileName)) {
+      printf("Perf test: removing %s\n", FileName);
+      return;
+    }
+
+}
 void
 PerformanceTest()
 {
     printf("Starting file system performance test:\n");
-    stats->Print();
+    //stats->Print();
     FileWrite();
+    // Thread*t1 = new Thread("test_synchdisk");
+    // t1->Fork(RemoveTest,0);
+    printf("%d reading ...",currentThread->get_threadID());
     FileRead();
-    if (!fileSystem->Remove(FileName)) {
-      printf("Perf test: unable to remove %s\n", FileName);
+    if (fileSystem->Remove(FileName)) {
+      printf("Perf test: removing %s\n", FileName);
       return;
     }
-    stats->Print();
+    printf("reading done\n");
+    //stats->Print();
+}
+void fileTest1(){
+    char res[ContentSize] = Contents;
+    fileSystem->PushPipe(Contents);
+    currentThread->Yield();
+    fileSystem->PushPipe("987654321");
 }
 
+void fileTest2(){
+    char*ans = new char[ContentSize];
+    fileSystem->PopPipe(ans);
+    printf("Pipe reading out %s\n",ans);
+    currentThread->Yield();
+    fileSystem->PopPipe(ans);
+    printf("Pipe reading out %s\n",ans);
+
+}
+
+void
+PerformanceTest2(){
+    Thread*t1 = new Thread("t1");
+    Thread*t2 = new Thread("t2");
+    t1->Fork(fileTest1,0);
+    t2->Fork(fileTest2,0);
+}

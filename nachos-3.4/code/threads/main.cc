@@ -60,7 +60,7 @@ extern int testnum;
 // External functions used by this file
 
 extern void ThreadTest(void), Copy(char *unixFile, char *nachosFile);
-extern void Print(char *file), PerformanceTest(void);
+extern void Print(char *file), PerformanceTest(void), PerformanceTest2(void);
 extern void MakeDir(char* name);
 extern void StartProcess(char *file), ConsoleTest(char *in, char *out);
 extern void MailTest(int networkID);
@@ -108,29 +108,29 @@ main(int argc, char **argv)
 	argCount = 1;
         if (!strcmp(*argv, "-z"))               // print copyright
             printf (copyright);
-// #ifdef USER_PROGRAM
-//         if (!strcmp(*argv, "-x")) {        	// run a user program
-// 	    ASSERT(argc > 1);
+#ifdef USER_PROGRAM
+        if (!strcmp(*argv, "-x")) {        	// run a user program
+	    ASSERT(argc > 1);
 
-//     	for(int i=1;i<argc;++i){
-//     		Thread * t = new Thread("userprog"+i);
-//     		t->Fork(StartProcess,(void*)*(argv + i));
-//     	}
-//         argCount = argc;
+    	for(int i=1;i<argc;++i){
+    		Thread * t = new Thread("userprog"+i);
+    		t->Fork(StartProcess,(void*)*(argv + i));
+    	}
+        argCount = argc;
 
-//         } else if (!strcmp(*argv, "-c")) {      // test the console
-// 	    if (argc == 1)
-// 	        ConsoleTest(NULL, NULL);
-// 	    else {
-// 		ASSERT(argc > 2);
-// 	        ConsoleTest(*(argv + 1), *(argv + 2));
-// 	        argCount = 3;
-// 	    }
-// 	    interrupt->Halt();		// once we start the console, then
-// 					// Nachos will loop forever waiting
-// 					// for console input
-// 	}
-// #endif // USER_PROGRAM
+        } else if (!strcmp(*argv, "-c")) {      // test the console
+	    if (argc == 1)
+	        ConsoleTest(NULL, NULL);
+	    else {
+		ASSERT(argc > 2);
+	        ConsoleTest(*(argv + 1), *(argv + 2));
+	        argCount = 3;
+	    }
+	    interrupt->Halt();		// once we start the console, then
+					// Nachos will loop forever waiting
+					// for console input
+	}
+#endif // USER_PROGRAM
 #ifdef FILESYS
 	if (!strcmp(*argv, "-cp")) { 		// copy from UNIX to Nachos
 	    ASSERT(argc > 2);

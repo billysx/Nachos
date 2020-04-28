@@ -35,6 +35,7 @@ OpenFile::OpenFile(int sector)
     // printf("---this file at %d has already contain %d---\n",sector,hdr->size);
     seekPosition = hdr->size;
     readPosition = 0;
+    synchDisk->ownerCount[hdrPos]++;
 }
 
 //----------------------------------------------------------------------
@@ -44,6 +45,7 @@ OpenFile::OpenFile(int sector)
 
 OpenFile::~OpenFile()
 {
+    synchDisk->ownerCount[hdrPos]--;
     delete hdr;
 }
 
@@ -75,19 +77,23 @@ OpenFile::Seek(int position)
 //----------------------------------------------------------------------
 
 int
-OpenFile::Read(char *into, int numBytes)
-{
-   int result = ReadAt(into, numBytes, readPosition);
-   readPosition += result;
-   return result;
+OpenFile::Read(char *into, int numBytes){
+    synchDisk->StartReader(hdrPos);
+    int result = ReadAt(into, numBytes, readPosition);
+    readPosition += result;
+    // currentThread->Yield();
+    synchDisk->EndReader(hdrPos);
+    return result;
 }
 
 int
-OpenFile::Write(char *into, int numBytes)
-{
-   int result = WriteAt(into, numBytes, seekPosition);
-   seekPosition += result;
-   return result;
+OpenFile::Write(char *into, int numBytes){
+    synchDisk->StartWriter(hdrPos);
+    int result = WriteAt(into, numBytes, seekPosition);
+    seekPosition += result;
+    // currentThread->Yield();
+    synchDisk->EndWriter(hdrPos);
+    return result;
 }
 
 //----------------------------------------------------------------------
@@ -137,9 +143,12 @@ OpenFile::ReadAt(char *into, int numBytes, int position)
 
     // read in all the full and partial sectors that we need
     buf = new char[numSectors * SectorSize];
-    for (i = firstSector; i <= lastSector; i++)
+    for (i = firstSector; i <= lastSector; i++){
+        // synchDisk->StartReader(hdr->ByteToSector(i * SectorSize));
         synchDisk->ReadSector(hdr->ByteToSector(i * SectorSize),
                     &buf[(i - firstSector) * SectorSize]);
+        // synchDisk->EndReader(hdr->ByteToSector(i * SectorSize));
+    }
 
     // Set last visit after read
     hdr->SetLastVisit();
@@ -168,7 +177,7 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
 
     // Change it to allow file length extention
     if ((position + numBytes) > fileLength){
-        // printf("file is at %d enlarging %d %d %d\n",hdrPos,position,numBytes,fileLength);
+        //printf("file is at %d enlarging %d %d %d\n",hdrPos,position,numBytes,fileLength);
         BitMap* freeMap = new BitMap(NumSectors);
         freeMap->FetchFrom(fileSystem->freeMapFile);
         hdr->Enlarge(freeMap, position + numBytes - fileLength);
@@ -205,11 +214,11 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
 
 
 // write modified sectors back
+
     for (i = firstSector; i <= lastSector; i++){
-        //printf("in there\n");
         synchDisk->WriteSector(hdr->ByteToSector(i * SectorSize),
                     &buf[(i - firstSector) * SectorSize]);
-        //printf("out there\n");
+
     }
     delete [] buf;
     return numBytes;
@@ -230,3 +239,14 @@ OpenFile::Print() {
     hdr->Print();
 }
 
+//----------------------------------------------------------------------
+// OpenFile::Clear
+//  Clear the file
+//----------------------------------------------------------------------
+void
+OpenFile::Clear(){
+    hdr->size = 0;
+    hdr->numBytes = 0;
+    seekPosition = 0;
+    readPosition = 0;
+}

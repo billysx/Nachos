@@ -87,6 +87,7 @@ class OpenFile {
 					// end of file, tell, lseek back
     int GetSeekPosition() { return seekPosition; }
     int GetHdrPos()       { return hdrPos; }
+    void Clear();
     void Print();
   private:
     FileHeader *hdr;			// Header for this file

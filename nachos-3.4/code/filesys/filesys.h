@@ -84,11 +84,15 @@ class FileSystem {
 
         void Print();           // List all the files and their contents
         int FindDir(char*name);
+        int PopPipe(char*data);
+        void PushPipe(char*data);
+
         OpenFile* freeMapFile;       // Bit map of free disk blocks,
                     // represented as a file
         OpenFile* directoryFile;     // "Root" directory -- list of
                     // file names, represented as a file
         OpenFile* filenameFile;
+        OpenFile* pipeFile;
 };
 
 #endif // FILESYS

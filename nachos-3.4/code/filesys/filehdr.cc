@@ -298,7 +298,7 @@ FileHeader::Enlarge(BitMap* freeMap, int size){
         if(FreeSectors < EnlargeSectors)
             return false;
     }
-    printf("The file is increased for %d bytes, enlarging disk sectors from %d to %d\n",size,oldNumSectors,numSectors);
+    // printf("The file is increased for %d bytes, enlarging disk sectors from %d to %d\n",size,oldNumSectors,numSectors);
     if(numSectors <= NumDirect-1){
         for (int i = oldNumSectors; i < numSectors ; i++) {
             // printf("* %d\n",i);

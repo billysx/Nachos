@@ -101,18 +101,18 @@ Directory::FindIndex(char *path)
     name = path2name(path);
     DEBUG('f', "Finding index for %s with %s\n", path,name);
     for (int i = 0; i < tableSize; i++){
-        //printf("this index %d has %d %d and sector %d ",i,table[i].NamePos,table[i].NameLength,table[i].sector);
+        // printf("this index %d has %d %d and sector %d ",i,table[i].NamePos,table[i].NameLength,table[i].sector);
         char*ffname = new char[table[i].NameLength+1];
         if (table[i].inUse){
             fileSystem->filenameFile->ReadAt(ffname,table[i].NameLength,table[i].NamePos);
             ffname[table[i].NameLength] = 0;
-            //printf("%s",ffname);
+            // printf("%s",ffname);
             if (!strncmp(ffname,name,FileNameMaxLen)){
-                //printf("\n");
+                // printf("\n");
                 return i;
             }
         }
-        //printf("\n");
+        // printf("\n");
     }
     return -1;      // name not in directory
 }

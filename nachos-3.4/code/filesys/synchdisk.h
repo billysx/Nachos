@@ -25,6 +25,16 @@
 // This class provides the abstraction that for any individual thread
 // making a request, it waits around until the operation finishes before
 // returning.
+
+#define CacheSize 16
+class CacheEntry{
+public:
+    bool valid;
+    int sector;
+    int timestep;
+    char data[SectorSize];
+};
+
 class SynchDisk {
   public:
     SynchDisk(char* name);    		// Initialize a synchronous disk,
@@ -42,13 +52,25 @@ class SynchDisk {
     void RequestDone();			// Called by the disk device interrupt
 					// handler, to signal that the
 					// current disk operation is complete.
+    void StartReader(int sector);
+    void EndReader(int sector);
 
-  private:
+    void StartWriter(int sector);
+    void EndWriter(int sector);
+
+
     Disk *disk;		  		// Raw disk device
     Semaphore *semaphore; 		// To synchronize requesting thread
 					// with the interrupt handler
     Lock *lock;		  		// Only one read/write request
 					// can be sent to the disk at a time
+    Semaphore *writable[NumSectors];     // Exclusively read/write a disk sector
+    Semaphore *mutex;               // Exclusively access readerCount array
+    int readerCount[NumSectors];    // record reader count
+    int ownerCount[NumSectors];
+
+    CacheEntry* cache = new CacheEntry[CacheSize];
 };
+
 
 #endif // SYNCHDISK_H

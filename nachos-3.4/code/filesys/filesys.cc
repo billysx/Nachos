@@ -50,6 +50,7 @@
 #include "directory.h"
 #include "filehdr.h"
 #include "filesys.h"
+#include "system.h"
 
 // Sectors containing the file headers for the bitmap of free sectors,
 // and the directory of files.  These file headers are placed in well-known
@@ -57,6 +58,7 @@
 #define FreeMapSector       0
 #define DirectorySector     1
 #define FilenameSector      2
+#define PipeSector          3
 
 // Initial file sizes for the bitmap and directory; until the file system
 // supports extensible files, the directory size sets the maximum number
@@ -65,7 +67,7 @@
 #define NumDirEntries       10
 #define FilenameFileSize    40
 #define DirectoryFileSize   (sizeof(DirectoryEntry) * NumDirEntries)
-
+#define PipeFileSize        100
 //----------------------------------------------------------------------
 // FileSystem::FileSystem
 //  Initialize the file system.  If format = TRUE, the disk has
@@ -88,6 +90,7 @@ FileSystem::FileSystem(bool format)
         FileHeader *mapHdr   = new FileHeader;
         FileHeader *dirHdr   = new FileHeader;
         FileHeader *nameHdr  = new FileHeader;
+        FileHeader *pipeHdr  = new FileHeader;
 
         DEBUG('f', "Formatting the file system.\n");
 
@@ -96,6 +99,7 @@ FileSystem::FileSystem(bool format)
         freeMap->Mark(FreeMapSector);
         freeMap->Mark(DirectorySector);
         freeMap->Mark(FilenameSector);
+        freeMap->Mark(PipeSector);
 
         // Second, allocate space for the data blocks containing the contents
         // of the directory and bitmap files.  There better be enough space!
@@ -103,6 +107,7 @@ FileSystem::FileSystem(bool format)
         ASSERT(mapHdr->Allocate(freeMap, FreeMapFileSize));
         ASSERT(dirHdr->Allocate(freeMap, DirectoryFileSize));
         ASSERT(nameHdr->Allocate(freeMap, FilenameFileSize));
+        ASSERT(pipeHdr->Allocate(freeMap, PipeFileSize));
 
         // Flush the bitmap and directory FileHeaders back to disk
         // We need to do this before we can "Open" the file, since open
@@ -113,7 +118,7 @@ FileSystem::FileSystem(bool format)
         mapHdr->WriteBack(FreeMapSector);
         dirHdr->WriteBack(DirectorySector);
         nameHdr->WriteBack(FilenameSector);
-
+        pipeHdr->WriteBack(PipeSector);
         // OK to open the bitmap and directory files now
         // The file system operations assume these two files are left open
         // while Nachos is running.
@@ -121,6 +126,7 @@ FileSystem::FileSystem(bool format)
         freeMapFile   = new OpenFile(FreeMapSector);
         directoryFile = new OpenFile(DirectorySector);
         filenameFile  = new OpenFile(FilenameSector);
+        pipeFile      = new OpenFile(PipeSector);
 
         // Once we have the files "open", we can write the initial version
         // of each file back to disk.  The directory at this point is completely
@@ -147,6 +153,7 @@ FileSystem::FileSystem(bool format)
         freeMapFile = new OpenFile(FreeMapSector);
         directoryFile = new OpenFile(DirectorySector);
         filenameFile  = new OpenFile(FilenameSector);
+        pipeFile      = new OpenFile(PipeSector);
     }
 }
 
@@ -192,6 +199,7 @@ FileSystem::Create(char *name, int initialSize)
 
     // Find the parent directory of the target file
     int parent_dir_sector = FindDir(name);
+
     DEBUG("f","%s 's parent_dir_sector %d\n",name,parent_dir_sector);
 
     OpenFile* parent_dir = new OpenFile(parent_dir_sector);
@@ -242,7 +250,7 @@ FileSystem::Create(char *name, int initialSize)
                 hdr->CreateTime[24] = 0;
                 if(isdir) printf("Directory ");
                 else printf("File ");
-                printf("%s is created at %s\n",name,hdr->CreateTime);
+                printf("%s is created, header in %d\n",name,sector);
 
                 hdr->SectorPos = sector;
                 hdr->SetLastVisit();
@@ -312,6 +320,9 @@ FileSystem::Open(char *name)
         printf("%s is at %d\n",name,sector );
         openFile = new OpenFile(sector);    // name was found in directory
     }
+    else{
+        printf("file not found error at %d\n",sector);
+    }
     delete directory;
     return openFile;                // return NULL if not found
 }
@@ -346,6 +357,14 @@ FileSystem::Remove(char *name)
     directory = new Directory(NumDirEntries);
     directory->FetchFrom(openFile);
     sector = directory->Find(name);
+    printf("Removing file with %d users\n",
+            synchDisk->ownerCount[sector]);
+    if(synchDisk->ownerCount[sector] > 0){
+        printf("Unable to delete file.%d users are still using this file at the moment\n",
+            synchDisk->ownerCount[sector]);
+        return false;
+    }
+
     if (sector == -1) {
        delete directory;
        return FALSE;             // file not found
@@ -471,6 +490,34 @@ FileSystem::FindDir(char*name){
     }
     return sector;
 
+}
+
+//----------------------------------------------------------------------
+// FileSystem::RopPipe
+//  Read data from the pipe
+//----------------------------------------------------------------------
+int
+FileSystem::PopPipe(char*data){
+    FileHeader*fileHdr = new FileHeader;
+    fileHdr->FetchFrom(PipeSector);
+    int length = fileHdr->size;
+    fileHdr->WriteBack(PipeSector);
+    pipeFile->Read(data,length);
+    pipeFile->Clear();
+}
+
+
+
+//----------------------------------------------------------------------
+// FileSystem::PushPipe
+//  Write data to the pipe
+//----------------------------------------------------------------------
+void
+FileSystem::PushPipe(char*data){
+    pipeFile->Write(data,strlen(data)+1);
+    FileHeader*fileHdr = new FileHeader;
+    fileHdr->FetchFrom(PipeSector);
+    fileHdr->WriteBack(PipeSector);
 }
 
 
