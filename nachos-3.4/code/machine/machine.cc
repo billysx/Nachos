@@ -233,3 +233,15 @@ void Machine::WriteRegister(int num, int value)
 	registers[num] = value;
     }
 
+
+//----------------------------------------------------------------------
+// Machine::updatePC
+//      Update pc register after system call
+//----------------------------------------------------------------------
+
+void Machine::updatePC(){
+    int pcAfter = registers[NextPCReg] + 4;
+    registers[PrevPCReg] = registers[PCReg];
+    registers[PCReg] = registers[NextPCReg];
+    registers[NextPCReg] = pcAfter;
+}

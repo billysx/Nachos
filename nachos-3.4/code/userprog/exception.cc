@@ -102,38 +102,131 @@ void InvertPageTable(){
     machine->pageTable[ppn].thread_id    = currentThread->get_threadID();
 }
 
+// Read out the name through register
+char* getname(){
+    int name_addr = machine->ReadRegister(4);
+
+    char*name = new char[100];
+    int pos = 0;
+    int tmp;
+
+    while(true){
+        machine->ReadMem(name_addr+pos,1,&tmp);
+        if(tmp == 0){
+            name[pos] = 0;
+            break;
+        }
+        name[pos++] = char(tmp);
+    }
+    return name;
+}
+
+void syscall_create(){
+    getname();
+    char*str = getname();
+    printf("Starting creating file %s\n",str);
+    fileSystem->Create(str,0);
+    machine->updatePC();
+}
+
+void syscall_open(){
+    char*str = getname();
+    printf("Starting opening file %s\n",str);
+    OpenFile* openfile = fileSystem->Open(str);
+    machine->WriteRegister(2,int(openfile));
+    machine->updatePC();
+}
+
+void syscall_close(){
+    int fd = machine->ReadRegister(4);
+    OpenFile *openfile = (OpenFile*)fd;
+    machine->updatePC();
+}
+
+void syscall_read(){
+    int addr = machine->ReadRegister(4);
+    int length = machine->ReadRegister(5);
+    int fd = machine->ReadRegister(6);
+    OpenFile* openfile = (OpenFile*)fd;
+    char data[length];
+    int len = openfile->Read(data,length);
+    for(int i=0;i<length;++i){
+        machine->WriteMem(addr+i,1,int(data[i]));
+    }
+    machine->WriteRegister(2,len);
+    machine->updatePC();
+}
+
+void syscall_write(){
+    int addr = machine->ReadRegister(4);
+    int length = machine->ReadRegister(5);
+    int fd = machine->ReadRegister(6);
+    char data[length];
+    int tmp;
+
+    for(int i=0;i<length;++i){
+        machine->ReadMem(addr+i,1,&tmp);
+        data[i] = char(data);
+    }
+    OpenFile* openfile = (OpenFile*)fd;
+    openfile->Write(data, length);
+    machine->updatePC();
+}
+
+
 
 void
 ExceptionHandler(ExceptionType which)
 {
     int type = machine->ReadRegister(2);
 
-    if ((which == SyscallException) && (type == SC_Halt) ) {
-		DEBUG('a', "Shutdown, initiated by user program.\n");
-        for(int i=0;i<machine->pageTableSize;++i){
-            int ppn = machine->pageTable[i].physicalPage;
-            if (machine->pageTable[i].valid==1 && machine->pageTable[i].thread_id == currentThread->get_threadID())
-                machine->bitmap->Clear(ppn);
+    if ( which == SyscallException ) {
+        if(type == SC_Halt){
+            DEBUG('a', "Shutdown, initiated by user program.\n");
+            for(int i=0;i<machine->pageTableSize;++i){
+                int ppn = machine->pageTable[i].physicalPage;
+                if (machine->pageTable[i].valid==1 && machine->pageTable[i].thread_id == currentThread->get_threadID())
+                    machine->bitmap->Clear(ppn);
+            }
+            interrupt->Halt();
         }
-	   	interrupt->Halt();
+
+        else if(type == SC_Exit){
+            /* printf("miss time %d, hit time %d ,miss rate %.8f\n",machine->tlb_miss_time,machine->tlb_hit_time,
+            float(machine->tlb_miss_time)/float(machine->tlb_hit_time));*/
+            currentThread->Yield();
+
+            for(int i=0;i<machine->pageTableSize;++i){
+                int ppn = machine->pageTable[i].physicalPage;
+                if (machine->pageTable[i].valid==1 && machine->pageTable[i].thread_id == currentThread->get_threadID())
+                    machine->bitmap->Clear(ppn);
+            }
+            printf("thread %d exits\n",currentThread->get_threadID());
+            currentThread->Finish();
+
+            DEBUG('a', "Shutdown, initiated by user program.\n");
+        }
+        else if(type == SC_Create){
+            syscall_create();
+        }
+        else if(type == SC_Open){
+            syscall_open();
+        }
+        else if(type == SC_Close){
+            printf("Starting closing file\n");
+            syscall_close();
+        }
+        else if(type == SC_Read){
+            printf("Starting reading file\n");
+            syscall_read();
+        }
+        else if(type == SC_Write){
+            printf("Starting writing file\n");
+            syscall_write();
+        }
+
     }
 
-    if ((which == SyscallException) && (type == SC_Exit) ) {
-        printf("miss time %d, hit time %d ,miss rate %.8f\n",machine->tlb_miss_time,machine->tlb_hit_time,
-            float(machine->tlb_miss_time)/float(machine->tlb_hit_time));
-        currentThread->Yield();
-
-        for(int i=0;i<machine->pageTableSize;++i){
-            int ppn = machine->pageTable[i].physicalPage;
-            if (machine->pageTable[i].valid==1 && machine->pageTable[i].thread_id == currentThread->get_threadID())
-                machine->bitmap->Clear(ppn);
-        }
-        printf("thread %d exits\n",currentThread->get_threadID());
-        currentThread->Finish();
-
-        DEBUG('a', "Shutdown, initiated by user program.\n");
-
-    }
 
     else if(which == PageFaultException){
     	// if (machine->cnttt++>100)
@@ -189,7 +282,7 @@ ExceptionHandler(ExceptionType which)
 
     	// when pageTable is used
     	else{
-            printf("page fault\n");
+            // printf("page fault\n");
             InvertPageTable();
             return;
             int vpn = (unsigned) machine->registers[BadVAddrReg] / PageSize;
