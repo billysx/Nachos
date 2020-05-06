@@ -113,7 +113,7 @@ main(int argc, char **argv)
 	    ASSERT(argc > 1);
 
     	for(int i=1;i<argc;++i){
-    		Thread * t = new Thread("userprog"+i);
+    		Thread * t = new Thread(*(argv + i));
     		t->Fork(StartProcess,(void*)*(argv + i));
     	}
         argCount = argc;

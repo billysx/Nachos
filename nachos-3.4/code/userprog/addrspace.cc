@@ -210,3 +210,25 @@ void AddrSpace::RestoreState()
     // machine->pageTableSize = numPages;
     machine->virtualPageSize = numPages;
 }
+
+
+//----------------------------------------------------------------------
+// AddrSpace::CopySpace
+//  copy address space
+//----------------------------------------------------------------------
+
+void AddrSpace::CopySpace(AddrSpace*src)
+{
+    for (int i = 0; i < numPages; i++) {
+        pageTable[i].virtualPage  = src->pageTable[i].virtualPage;
+
+        pageTable[i].physicalPage = src->pageTable[i].physicalPage;
+        pageTable[i].valid        = src->pageTable[i].valid;
+        pageTable[i].use          = src->pageTable[i].use;
+        pageTable[i].dirty        = src->pageTable[i].dirty;
+        pageTable[i].readOnly     = src->pageTable[i].readOnly;
+
+    }
+
+    numPages = src->numPages;
+}
