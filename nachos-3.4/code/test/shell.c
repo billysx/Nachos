@@ -9,18 +9,18 @@ main()
     char prompt[2], ch, buffer[60];
     int i;
 
-    prompt[0] = '-';
-    prompt[1] = '-';
+    prompt[0] = '>';
+    prompt[1] = '>';
 
     while( 1 )
     {
 	Write(prompt, 2, output);
 
 	i = 0;
-	
+
 	do {
-	
-	    Read(&buffer[i], 1, input); 
+
+	    Read(&buffer[i], 1, input);
 
 	} while( buffer[i++] != '\n' );
 

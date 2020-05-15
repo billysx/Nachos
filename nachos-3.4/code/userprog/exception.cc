@@ -133,13 +133,22 @@ void syscall_read(){
     int addr = machine->ReadRegister(4);
     int length = machine->ReadRegister(5);
     int fd = machine->ReadRegister(6);
-    OpenFile* openfile = (OpenFile*)fd;
     char data[length];
-    int len = openfile->Read(data,length);
+
+    if(fd == 0){
+        for(int i=0; i<length; ++i)
+            data[i] = getchar();
+    }
+    else{
+        OpenFile* openfile = (OpenFile*)fd;
+        int len = openfile->Read(data,length);
+    }
+
     for(int i=0;i<length;++i){
         machine->WriteMem(addr+i,1,int(data[i]));
     }
-    machine->WriteRegister(2,len);
+
+    machine->WriteRegister(2, length);
     machine->updatePC();
 }
 
@@ -151,19 +160,26 @@ void syscall_write(){
     char data[length];
     int tmp;
 
-    for(int i=0;i<length;++i){
+    for(int i = 0; i < length; ++i){
         machine->ReadMem(addr+i,1,&tmp);
-        data[i] = char(data);
+        data[i] = char(tmp);
     }
-    OpenFile* openfile = (OpenFile*)fd;
-    openfile->Write(data, length);
+    if (fd == 1){
+        for(int i=0; i<length; ++i)
+            putchar(data[i]);
+    }
+    else{
+        OpenFile* openfile = (OpenFile*)fd;
+        openfile->Write(data, length);
+    }
+
     machine->updatePC();
 }
 
 // SpaceId Exec(char *name);
 void
 StartP(char *filename){
-    printf("thread %d executing file %s\n",currentThread->get_threadID(),filename);
+    // printf("thread %d executing file %s\n",currentThread->get_threadID(),filename);
     OpenFile *executable = fileSystem->Open(filename);
     AddrSpace *space;
 
@@ -271,7 +287,7 @@ void syscall_join(){
     while(USED_THREAD_ID[id]){
         currentThread->Yield();
     }
-    printf("waiting done\n");
+    // printf("waiting done\n");
     machine->updatePC();
 }
 
@@ -338,22 +354,22 @@ ExceptionHandler(ExceptionType which)
             syscall_open();
         }
         else if(type == SC_Close){
-            printf("Starting closing file\n");
+            // printf("Starting closing file\n");
             syscall_close();
         }
         else if(type == SC_Read){
-            printf("Starting reading file\n");
+            // printf("Starting reading file\n");
             syscall_read();
         }
         else if(type == SC_Write){
-            printf("Starting writing file\n");
+            // printf("Starting writing file\n");
             syscall_write();
         }
         else if(type == SC_Exec){
             syscall_exec();
         }
         else if(type == SC_Fork){
-            printf("Starting Forking at %d\n",currentThread->get_threadID());
+            // printf("Starting Forking at %d\n",currentThread->get_threadID());
             syscall_fork();
         }
         else if(type == SC_Yield){
