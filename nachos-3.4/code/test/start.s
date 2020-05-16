@@ -1,4 +1,4 @@
-/* Start.s 
+/* Start.s
  *	Assembly language assist for user programs running on top of Nachos.
  *
  *	Since we don't want to pull in the entire C library, we define
@@ -9,12 +9,12 @@
 #define IN_ASM
 #include "syscall.h"
 
-        .text   
+        .text
         .align  2
 
 /* -------------------------------------------------------------
  * __start
- *	Initialize running a C program, by calling "main". 
+ *	Initialize running a C program, by calling "main".
  *
  * 	NOTE: This has to be first, so that it gets loaded at location 0.
  *	The Nachos kernel always starts a program by jumping to location 0.
@@ -25,7 +25,7 @@
 	.ent	__start
 __start:
 	jal	main
-	move	$4,$0		
+	move	$4,$0
 	jal	Exit	 /* if we return from main, exit(0) */
 	.end __start
 
@@ -34,7 +34,7 @@ __start:
  *	Assembly language assist to make system calls to the Nachos kernel.
  *	There is one stub per system call, that places the code for the
  *	system call into register r2, and leaves the arguments to the
- *	system call alone (in other words, arg1 is in r4, arg2 is 
+ *	system call alone (in other words, arg1 is in r4, arg2 is
  *	in r5, arg3 is in r6, arg4 is in r7)
  *
  * 	The return value is in r2. This follows the standard C calling
@@ -129,6 +129,76 @@ Yield:
 	syscall
 	j	$31
 	.end Yield
+
+
+	.globl Pwd
+	.ent	Pwd
+Pwd:
+	addiu $2,$0,SC_Pwd
+	syscall
+	j $31
+	.end Pwd
+
+	.globl Ls
+	.ent	Ls
+Ls:
+	addiu $2,$0,SC_Ls
+	syscall
+	j $31
+	.end Ls
+
+	.globl Cd
+	.ent	Cd
+Cd:
+	addiu $2,$0,SC_Cd
+	syscall
+	j $31
+	.end Cd
+
+	.globl Cf
+	.ent	Cf
+Cf:
+	addiu $2,$0,SC_Cf
+	syscall
+	j $31
+	.end Cf
+
+	.globl Rf
+	.ent	Rf
+Rf:
+	addiu $2,$0,SC_Rf
+	syscall
+	j $31
+	.end Rf
+
+
+	.globl Mkdir
+	.ent	Mkdir
+Mkdir:
+	addiu $2,$0,SC_Mkdir
+	syscall
+	j $31
+	.end Mkdir
+
+
+	.globl Rm
+	.ent	Rm
+Rm:
+	addiu $2,$0,SC_Rm
+	syscall
+	j $31
+	.end Rm
+
+	.globl Print
+	.ent	Print
+Print:
+	addiu $2,$0,SC_Print
+	syscall
+	j $31
+	.end Print
+
+
+
 
 /* dummy function to keep gcc happy */
         .globl  __main

@@ -29,6 +29,14 @@
 #define SC_Close	8
 #define SC_Fork		9
 #define SC_Yield	10
+#define SC_Pwd		11
+#define SC_Ls		12
+#define SC_Cd		13
+#define SC_Cf		14
+#define SC_Rf		15
+#define SC_Mkdir	16
+#define SC_Rm		17
+#define SC_Print	18
 
 #ifndef IN_ASM
 
@@ -123,6 +131,38 @@ void Fork(void (*func)());
  * or not.
  */
 void Yield();
+
+//----------------------------------------------------------------------
+// My implementations of extra system calls
+// 		void Pwd(); void Ls(); void Cd();
+// 		void Cf(); void Rf();
+//		void Mkdir(); void Rm();
+//----------------------------------------------------------------------
+/* Print working directory */
+void Pwd();
+
+
+/* List directory */
+void Ls();
+
+/* Change directory */
+void Cd(char*name);
+
+/* Create file */
+void Cf(char*name);
+
+/* Remove a file */
+void Rf(char*name);
+
+/* Make a new directory */
+void Mkdir(char*name);
+
+/* Remove a new directory */
+void Rm(char*name);
+
+/* Print string */
+void Print(char*out);
+
 
 #endif /* IN_ASM */
 

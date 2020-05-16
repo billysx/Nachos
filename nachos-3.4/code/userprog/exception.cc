@@ -20,10 +20,13 @@
 // Copyright (c) 1992-1993 The Regents of the University of California.
 // All rights reserved.  See copyright.h for copyright notice and limitation
 // of liability and disclaimer of warranty provisions.
-
+#include <stdlib.h>
+#include <unistd.h>
 #include "copyright.h"
 #include "system.h"
 #include "syscall.h"
+#include <sys/stat.h>
+
 
 // all the replacement algorithms
 #define RA_FIFO 0
@@ -291,6 +294,68 @@ void syscall_join(){
     machine->updatePC();
 }
 
+
+
+// void Pwd();
+void syscall_pwd(){
+    system("pwd");
+    machine->updatePC();
+}
+
+// void Ls();
+void syscall_ls(){
+    system("ls");
+    machine->updatePC();
+}
+
+// void Cd(char*name);
+void syscall_cd(){
+    int dir_addr = machine->ReadRegister(4);
+    char*str = getname(dir_addr);
+    chdir(str);
+
+    machine->updatePC();
+}
+
+// void Rf(char*name);
+void syscall_rf(){
+    int dir_addr = machine->ReadRegister(4);
+    char*str = getname(dir_addr);
+    fileSystem->Remove(str);
+
+    machine->updatePC();
+
+}
+
+
+// void Mkdir(char*name);
+void syscall_mkdir(){
+    int dir_addr = machine->ReadRegister(4);
+    char*str = getname(dir_addr);
+    mkdir(str, 0777);
+
+    machine->updatePC();
+
+}
+
+// void Rm();
+void syscall_rm(){
+    int dir_addr = machine->ReadRegister(4);
+    char*str = getname(dir_addr);
+    rmdir(str);
+
+    machine->updatePC();
+}
+
+// void Print();
+void syscall_print(){
+    int str_addr = machine->ReadRegister(4);
+    char*str = getname(str_addr);
+    printf(str);
+
+    machine->updatePC();
+}
+
 //----------------------------------------------------------------------
 // ExceptionHandler
 //  Entry point into the Nachos kernel.  Called when a user program
@@ -321,6 +386,7 @@ ExceptionHandler(ExceptionType which)
 
     if ( which == SyscallException ) {
         if(type == SC_Halt){
+            printf("In halting...\n");
             DEBUG('a', "Shutdown, initiated by user program.\n");
             for(int i=0;i<machine->pageTableSize;++i){
                 int ppn = machine->pageTable[i].physicalPage;
@@ -373,12 +439,33 @@ ExceptionHandler(ExceptionType which)
             syscall_fork();
         }
         else if(type == SC_Yield){
-            printf("Starting Yield at %d\n",currentThread->get_threadID());
+            // printf("Starting Yield at %d\n",currentThread->get_threadID());
             syscall_yield();
         }
         else if(type == SC_Join){
-            printf("Starting join at %d\n",currentThread->get_threadID());
+            // printf("Starting join at %d\n",currentThread->get_threadID());
             syscall_join();
+        }
+        else if(type == SC_Pwd){
+            syscall_pwd();
+        }
+        else if(type == SC_Ls){
+            syscall_ls();
+        }
+        else if(type == SC_Cd){
+            syscall_cd();
+        }
+        else if(type == SC_Rf){
+            syscall_rf();
+        }
+        else if(type == SC_Mkdir){
+            syscall_mkdir();
+        }
+        else if(type == SC_Rm){
+            syscall_rm();
+        }
+        else if(type == SC_Print){
+            syscall_print();
         }
 
     }

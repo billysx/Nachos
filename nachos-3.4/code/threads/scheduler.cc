@@ -115,8 +115,8 @@ Scheduler::Run (Thread *nextThread)
 
     DEBUG('t', "Switching from thread \"%s\" to thread \"%s\"\n",
 	  oldThread->getName(), nextThread->getName());
-    printf("Switching from thread %d to thread %d \n",
-      oldThread->get_threadID(), nextThread->get_threadID());
+    // printf("Switching from thread %d to thread %d \n",
+    //  oldThread->get_threadID(), nextThread->get_threadID());
 
     // This is a machine-dependent assembly language routine defined
     // in switch.s.  You may have to think
